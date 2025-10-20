@@ -1,0 +1,377 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Edicao {
+  id         Int       @id @default(autoincrement())
+  ano        Int       @unique
+  descricao  String?   @db.Text
+  ativa      Boolean   @default(true)
+  dataFim    DateTime
+  dataInicio DateTime
+  nome       String    @db.VarChar(100)
+  jogadores  Jogador[]
+  jogos      Jogo[]
+  times      Time[]
+  turmas     Turma[]
+
+  @@map("edicoes")
+}
+
+enum ModalidadeEnum {
+  FUTSAL
+  VOLEI
+  BASQUETE
+  HANDBALL
+}
+
+model Modalidade {
+  id                  Int                  @id @default(autoincrement())
+  nome                String               @db.VarChar(100)
+  tipo                ModalidadeEnum       @unique
+  icone               String?              @db.VarChar(255)
+  descricao           String?              @db.Text
+  genero              GeneroModalidade     @default(Masculino)
+  estatisticasJogador EstatisticaJogador[]
+  estatisticasTimes   EstatisticaTime[]
+  jogadorModalidades  JogadorModalidade[]
+  jogos               Jogo[]
+  times               Time[]
+
+  @@map("modalidades")
+}
+
+model Turma {
+  id       Int       @id @default(autoincrement())
+  nome     String    @db.VarChar(50)
+  ativa    Boolean   @default(true)
+  edicaoId Int?
+  serie    Int
+  turno    String    @db.VarChar(20)
+  alunos   Jogador[]
+  admins   Usuario[] // Administradores responsáveis por esta turma
+  edicao   Edicao?   @relation(fields: [edicaoId], references: [id], onDelete: Restrict)
+  // Remove the direct relationship with Time
+  // timeId   Int?      // Relacionamento com Time - uma turma pertence a um time
+  // time     Time?     @relation(fields: [timeId], references: [id], onDelete: SetNull)
+
+  // Add a new relationship table for Turma-Time associations
+  turmaTimes TurmaTime[]
+
+  @@unique([nome, edicaoId], name: "turma_edicao_unique")
+  @@index([edicaoId], map: "idx_turmas_edicao")
+  @@map("turmas")
+}
+
+model Usuario {
+  id           Int           @id @default(autoincrement())
+  nome         String        @db.VarChar(100)
+  email        String        @unique @db.VarChar(100)
+  senha        String        @db.VarChar(255)
+  ativo        Boolean       @default(true)
+  atualizadoEm DateTime      @updatedAt
+  criadoEm     DateTime      @default(now())
+  tipo         String        @default("admin_turma") @db.VarChar(20)
+  turmaId      Int? // Para admin_turma: qual turma ele administra
+  ultimoLogin  DateTime?
+  notificacoes Notificacao[]
+  turma        Turma?        @relation(fields: [turmaId], references: [id], onDelete: SetNull)
+
+  @@index([turmaId], map: "idx_usuarios_turma")
+  @@map("usuarios")
+}
+
+model Notificacao {
+  id        Int      @id @default(autoincrement())
+  titulo    String   @db.VarChar(100)
+  mensagem  String   @db.Text
+  lida      Boolean  @default(false)
+  usuarioId Int
+  criadoEm  DateTime @default(now())
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId], map: "idx_notificacoes_usuario")
+  @@map("notificacoes")
+}
+
+model Time {
+  id                Int               @id @default(autoincrement())
+  nome              String            @db.VarChar(100)
+  ativo             Boolean           @default(true)
+  corUniforme       String?           @db.VarChar(7)
+  grupo             String?           @db.VarChar(10) // Novo campo para grupo (A, B, etc.)
+  edicaoId          Int
+  modalidadeId      Int
+  // Remove the direct relationship with Turmas
+  // turmas            Turma[]           // Relacionamento com Turmas - um time pode ter várias turmas
+  // Add the new relationship
+  turmaTimes        TurmaTime[]
+  estatisticasTimes EstatisticaTime[]
+  eventosJogo       EventoJogo[]
+  jogoTimes         JogoTime[]
+  jogosComoTime1    Jogo[]            @relation("Time1Jogos")
+  jogosComoTime2    Jogo[]            @relation("Time2Jogos")
+  timeJogadores     TimeJogador[]
+  edicao            Edicao            @relation(fields: [edicaoId], references: [id])
+  modalidade        Modalidade        @relation(fields: [modalidadeId], references: [id], onDelete: Cascade)
+
+  @@index([edicaoId], map: "idx_times_edicao")
+  @@index([modalidadeId], map: "idx_times_modalidade")
+  @@map("times")
+}
+
+model Jogador {
+  id                     Int                  @id @default(autoincrement())
+  nome                   String               @db.VarChar(100)
+  genero                 GeneroJogador?       // New field for player gender
+  edicaoId               Int?
+  turmaId                Int?
+  numeroCamisa           Int? // New field for shirt number
+  estatisticasJogador    EstatisticaJogador[]
+  eventosJogo            EventoJogo[]         @relation("EventoJogador")
+  eventosJogoSubstituido EventoJogo[]         @relation("EventoJogadorSubstituido")
+  jogadorModalidades     JogadorModalidade[]
+  edicao                 Edicao?              @relation(fields: [edicaoId], references: [id], onDelete: Restrict)
+  turma                  Turma?               @relation(fields: [turmaId], references: [id], onDelete: Restrict)
+  timeJogadores          TimeJogador[]
+
+  // Add unique constraint to prevent duplicate players in the same edition and turma
+  @@unique([nome, turmaId, edicaoId], name: "jogador_unique_nome_turma_edicao")
+  @@index([edicaoId], map: "idx_jogadores_edicao")
+  @@index([turmaId], map: "idx_jogadores_turma")
+  @@map("jogadores")
+}
+
+model TimeJogador {
+  id           Int       @id @default(autoincrement())
+  ativo        Boolean   @default(true)
+  capitao      Boolean   @default(false)
+  dataEntrada  DateTime  @default(now())
+  dataSaida    DateTime?
+  jogadorId    Int
+  numeroCamisa Int?
+  posicao      String?   @db.VarChar(50)
+  timeId       Int
+  jogador      Jogador   @relation(fields: [jogadorId], references: [id], onDelete: Cascade)
+  time         Time      @relation(fields: [timeId], references: [id], onDelete: Cascade)
+
+  @@unique([timeId, jogadorId], name: "time_jogador_unique")
+  @@index([jogadorId], map: "idx_time_jogador_jogador_id")
+  @@map("time_jogador")
+}
+
+model JogadorModalidade {
+  id           Int        @id @default(autoincrement())
+  jogadorId    Int
+  modalidadeId Int
+  jogador      Jogador    @relation(fields: [jogadorId], references: [id], onDelete: Cascade)
+  modalidade   Modalidade @relation(fields: [modalidadeId], references: [id], onDelete: Cascade)
+
+  @@unique([jogadorId, modalidadeId], name: "jogador_modalidade_unique")
+  @@index([modalidadeId], map: "idx_jogador_modalidade")
+  @@map("jogador_modalidade")
+}
+
+model Jogo {
+  id           Int          @id @default(autoincrement())
+  local        String       @db.VarChar(100)
+  createdAt    DateTime     @default(now())
+  dataHora     DateTime
+  descricao    String?      @db.Text
+  edicaoId     Int?
+  modalidadeId Int
+  status       StatusJogo   @default(AGENDADO)
+  time1Id      Int
+  time2Id      Int
+  updatedAt    DateTime     @updatedAt
+  periodo      PeriodoJogo? // Período do dia para ativação automática
+  tipoJogo     TipoJogo     @default(FASE_GRUPOS) // Novo campo para tipo do jogo
+  eventos      EventoJogo[] @relation("JogoEventos")
+  jogoTimes    JogoTime[]
+  edicao       Edicao?      @relation(fields: [edicaoId], references: [id], onDelete: Restrict)
+  modalidade   Modalidade   @relation(fields: [modalidadeId], references: [id])
+  time1        Time         @relation("Time1Jogos", fields: [time1Id], references: [id])
+  time2        Time         @relation("Time2Jogos", fields: [time2Id], references: [id])
+  pausas        JogoPausa[]
+  // Campos para pontuação de vôlei (sets)
+  setsTime1    String?      @default("0,0,0") @db.VarChar(50) // Pontuação dos sets do time 1 (ex: "25,20,25")
+  setsTime2    String?      @default("0,0,0") @db.VarChar(50) // Pontuação dos sets do time 2 (ex: "18,25,23")
+  // Campos para pontuação de tênis de mesa (games)
+  gamesTime1   String?      @default("0,0,0") @db.VarChar(50) // Pontuação dos games do time 1 (ex: "11,9,7")
+  gamesTime2   String?      @default("0,0,0") @db.VarChar(50) // Pontuação dos games do time 2 (ex: "9,11,11")
+
+  @@index([modalidadeId])
+  @@index([time1Id])
+  @@index([time2Id])
+  @@index([dataHora])
+  @@index([edicaoId], map: "idx_jogos_edicao")
+  @@map("jogos")
+}
+
+model JogoTime {
+  id      Int     @id @default(autoincrement())
+  gols    Int     @default(0)
+  derrota Boolean @default(false)
+  empate  Boolean @default(false)
+  jogoId  Int
+  timeId  Int
+  vitoria Boolean @default(false)
+  jogo    Jogo    @relation(fields: [jogoId], references: [id], onDelete: Cascade)
+  time    Time    @relation(fields: [timeId], references: [id], onDelete: Cascade)
+
+  @@index([jogoId], map: "idx_jogo_times_jogo")
+  @@index([timeId], map: "idx_jogo_times_time")
+  @@map("jogo_times")
+}
+
+model EventoJogo {
+  id                   Int        @id @default(autoincrement())
+  jogoId               Int
+  tipo                 TipoEvento
+  minuto               Int
+  descricao            String?    @db.VarChar(255)
+  timeId               Int
+  jogadorId            Int?
+  jogadorSubstituidoId Int?
+  metadados            String?    @db.Text
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+  jogador              Jogador?   @relation("EventoJogador", fields: [jogadorId], references: [id], onDelete: Cascade)
+  jogadorSubstituido   Jogador?   @relation("EventoJogadorSubstituido", fields: [jogadorSubstituidoId], references: [id], onDelete: Cascade)
+  jogo                 Jogo       @relation("JogoEventos", fields: [jogoId], references: [id], onDelete: Cascade)
+  time                 Time       @relation(fields: [timeId], references: [id], onDelete: Cascade)
+
+  @@index([jogoId])
+  @@index([timeId])
+  @@index([jogadorId])
+  @@index([jogadorSubstituidoId])
+  @@index([tipo])
+  @@index([minuto])
+  @@map("evento_jogo")
+}
+
+model EstatisticaTime {
+  vitorias     Int        @default(0)
+  empates      Int        @default(0)
+  derrotas     Int        @default(0)
+  pontos       Int        @default(0)
+  golsContra   Int        @default(0)
+  golsPro      Int        @default(0)
+  modalidadeId Int
+  timeId       Int
+  modalidade   Modalidade @relation(fields: [modalidadeId], references: [id])
+  time         Time       @relation(fields: [timeId], references: [id])
+
+  @@id([timeId, modalidadeId])
+  @@index([modalidadeId], map: "idx_estatistica_time_modalidade")
+  @@map("estatistica_time")
+}
+
+model EstatisticaJogador {
+  id               Int        @id @default(autoincrement())
+  jogadorId        Int
+  modalidadeId     Int
+  gols             Int        @default(0)
+  assistencias     Int        @default(0)
+  cartoesAmarelos  Int        @default(0)
+  cartoesVermelhos Int        @default(0)
+  jogos            Int        @default(0)
+  jogador          Jogador    @relation(fields: [jogadorId], references: [id], onDelete: Cascade)
+  modalidade       Modalidade @relation(fields: [modalidadeId], references: [id], onDelete: Cascade)
+
+  @@unique([jogadorId, modalidadeId])
+  @@index([modalidadeId], map: "idx_estatistica_jogador_modalidade")
+  @@map("estatistica_jogador")
+}
+
+enum GeneroModalidade {
+  Masculino
+  Feminino
+  Misto
+}
+
+enum GeneroJogador {
+  Masculino
+  Feminino
+  Misto
+}
+
+enum StatusJogo {
+  AGENDADO
+  EM_ANDAMENTO
+  PAUSADO
+  FINALIZADO
+  CANCELADO
+}
+
+enum TipoEvento {
+  GOL
+  ASSISTENCIA
+  CARTAO_AMARELO
+  CARTAO_VERMELHO
+  SUBSTITUICAO
+  LESAO
+  FALTA
+  PENALTI
+  FALTA_GRAVE
+  FALTA_GRAVISSIMA
+  IMPEDIMENTO
+  MAO_BOLA
+  ESCANTIO
+  LATERAL
+  TIRO_META
+  TIRO_LIVRE
+  GOL_CONTRA
+  GOL_DE_PENALTI
+  GOL_DE_FALTA
+  GOL_DE_ESQUINA
+  GOL_DE_LATERAL
+  GOL_DE_TIRO_DE_META
+  GOL_DE_TIRO_LIVRE
+  OUTRO
+}
+
+enum PeriodoJogo {
+  MANHA
+  MEIO_DIA
+  TARDE
+  NOITE
+}
+
+enum TipoJogo {
+  FASE_GRUPOS
+  SEMIFINAL
+  FINAL
+}
+
+// Add a new model for Turma-Time relationships
+model TurmaTime {
+  id        Int      @id @default(autoincrement())
+  turmaId   Int
+  timeId    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  turma     Turma    @relation(fields: [turmaId], references: [id], onDelete: Cascade)
+  time      Time     @relation(fields: [timeId], references: [id], onDelete: Cascade)
+
+  @@unique([turmaId, timeId], name: "turma_time_unique")
+  @@index([turmaId], map: "idx_turma_time_turma")
+  @@index([timeId], map: "idx_turma_time_time")
+  @@map("turma_times")
+}
+
+model JogoPausa {
+  id        Int      @id @default(autoincrement())
+  jogoId    Int
+  inicio    DateTime // Quando a pausa começou
+  fim       DateTime? // Quando a pausa terminou (null se ainda está pausado)
+  jogo      Jogo     @relation(fields: [jogoId], references: [id], onDelete: Cascade)
+
+  @@index([jogoId])
+  @@map("jogo_pausa")
+}

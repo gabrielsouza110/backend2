@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: dashboard-esportivo-backend
+    env: node
+    buildCommand: npm run build:render
+    startCommand: npm run start:prod
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: PORT
+        value: 3000

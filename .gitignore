@@ -1,0 +1,108 @@
+# Node.js
+node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pino.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.*
+.env.render
+!.env.example
+
+# Database files
+prisma/dev.db
+prisma/dev.db-journal
+prisma/test.db
+prisma/test.db-journal
+*.db
+*.db-journal
+
+# Build output
+dist/
+build/
+.next/
+out/
+
+# Test coverage and reports
+coverage/
+.nyc_output/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Old directories (no longer needed after reorganization)
+api/
+__tests__/
+backend/
+
+# Test files and testing infrastructure (not needed in production)
+tests/
+jest.config.js
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
+test-*.ps1
+*.ps1
+
+#others 
+.kiro/
+docs/
+scripts/
+scripts_backup/
+__tests__/ 
+public/
+
+# Development and testing scripts
+scripts/sync-users.ts
+scripts/production-setup.ts
+scripts/create-mysql-database.js
+scripts/setup-database.js
+scripts/reset-database.js
+scripts/update-database.ts
+scripts_backup/
+
+# Development documentation
+README_TESTES_API.md
+GUIA_TESTE_ESTATISTICAS.md
+RESTRUCTURE_PLAN.md
+REORGANIZATION_COMPLETE.md
+PROJECT_ORGANIZATION.md
+
+# Development configuration files
+eslint.config.mjs
+.eslintrc*
+.prettierrc*
+jest.config.*
+tsconfig.json
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Upload directories
+uploads/
+test-uploads/
+
+# Production logs (may be handled by log rotation)
+audit.log
+security.log
+
+# Lock files (optional - uncomment if you want to ignore)
+# package-lock.json
+# yarn.lock
