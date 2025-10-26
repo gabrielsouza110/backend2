@@ -1,7 +1,12 @@
 // Load environment variables FIRST before any imports
 console.log('🔧 Loading environment variables...');
-import dotenv from 'dotenv';
-dotenv.config();
+// CONDITIONALLY load dotenv only in non-production environments
+if (process.env.NODE_ENV !== 'production') {
+  console.log('🔧 Carregando variáveis do .env (Ambiente de Desenvolvimento)');
+  require('dotenv').config();
+} else {
+  console.log('🔧 Using environment variables from platform (Ambiente de Produção)');
+}
 console.log('✅ Environment variables loaded');
 console.log('🔍 PORT from process.env:', process.env.PORT);
 console.log('🔍 NODE_ENV:', process.env.NODE_ENV);
